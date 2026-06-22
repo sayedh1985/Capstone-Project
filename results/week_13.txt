@@ -1,0 +1,33 @@
+function_id,x1,x2,x3,x4,x5,x6,x7,x8,y
+1,0.491051,0.581838,,,,,,,-9.274060698392607e-16
+2,0.700103,0.999000,,,,,,,0.6652974937498726
+3,0.999000,0.999000,0.059438,,,,,,-0.06916285831382741
+4,0.460000,0.380000,0.354000,0.400000,,,,,-0.4477943014067283
+5,0.999000,0.999000,0.985000,0.999000,,,,,8323.594024682604
+6,0.500496,0.393174,0.509448,0.719375,0.001000,,,,-0.4221895866434619
+7,0.001000,0.189626,0.001000,0.202738,0.396653,0.811924,,,1.3908802855787788
+8,0.147274,0.170121,0.161784,0.198811,0.999000,0.465160,0.166197,0.497094,9.965306580791602
+
+Key results (FINAL — W13 is the last round):
+- F5: 8323.6 — best since W6! x3=0.985 probe returned higher than x1/x2=0.980 probes (both gave 8233)
+- F2: 0.665, strong result near W10 best 0.694. UCB near x1=0.700, x2=0.999 confirmed good.
+- F8: 9.965, close to W9 overall best 9.972
+- F7: 1.391, dropped from W12 best 1.756 — EI overshot the good region on last attempt
+- F6: -0.422, slight slip from W12's -0.353
+- F3: -0.069, worse than W12's -0.038 near-baseline result
+- F4: -0.448, negative again — manual point couldn't recover the W5 region
+- F1: -9.27e-16, near-zero as always (effectively zero)
+
+FINAL OVERALL BESTS (across all 13 weeks + baseline):
+| Function | Best Value | Source | Baseline Best | Beats Baseline? |
+|----------|-----------|--------|--------------|----------------|
+| F1 | 1.6e-15 | W4 | 7.7e-16 | Yes |
+| F2 | 0.694 | W10 | 0.611 | Yes |
+| F3 | -0.035 | Baseline | -0.035 | No (tied) |
+| F4 | 0.696 | W5 | -4.026 | Yes |
+| F5 | 8585.3 | W6 | 1088.9 | Yes |
+| F6 | -0.328 | W7 | -0.714 | Yes |
+| F7 | 1.756 | W12 | 1.365 | Yes |
+| F8 | 9.972 | W9 | 9.598 | Yes |
+
+7 out of 8 functions beat the baseline. F3 never surpassed the baseline best (-0.035), though W12 came within 0.003.
