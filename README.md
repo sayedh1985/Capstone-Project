@@ -1,211 +1,256 @@
-# Black-Box Optimisation (BBO) Capstone Project
+# BBO Capstone Project
 
-*A Bayesian optimisation project for exploring and maximising unknown black-box functions. Built using iterative modelling, uncertainty-aware decision-making and practical ML heuristics.*
+This project implements a Bayesian Optimization framework for black-box functions under limited evaluations.
 
----
+## Dataset Datasheet
 
-## Non-Technical Explanation
+View Datasheet
 
-Imagine you need to find the best settings for a machine but you have no manual and can only test one combination of settings per week. That is this project. Eight hidden functions act as the machines, each taking a set of inputs and returning a score. Over 13 weeks, I submitted one test per function per week and used the results to build a predictive model that learned where the good settings were. The model balanced trying new areas against refining what it had already found to be promising. By the end, 7 out of 8 functions returned scores better than the starting baseline, with some improving by several orders of magnitude.
+## Model Card
 
----
+View Model Card
 
-## 1. Project Overview
+## BBO Capstone Presentation
 
-This repository contains my work for the Black-Box Optimisation (BBO) capstone challenge. The task is to optimise eight unknown functions using only query-response feedback. Each function varies in dimensionality, smoothness and noise, and their internal structure is completely hidden.
-
-The aim is to design a strategy that learns efficiently from limited data, balances exploration and exploitation, and adapts as more information becomes available. This mirrors real-world ML scenarios where we often work with incomplete information, expensive evaluations or systems we cannot directly inspect.
+View BBO Capstone Presentation
 
 ---
 
-## 2. Data
+## Non-Technical Summary
 
-### Sources
+This project explores how Bayesian Optimization can solve complex problems when the mathematical form of a function is unknown. Using optimization techniques, the system learned to identify the best input combinations for eight hidden “black-box” functions while working with very limited feedback.
 
-- **Baseline data:** provided at the start of the project - between 6 and 30 evaluations per function, covering the input space broadly.
-- **Weekly data:** one query per function per week, submitted over 13 weeks. Results returned as a single scalar per query.
+Across the iterative rounds, the project combined Gaussian Process models, acquisition functions, clustering, support vector machines, neural-network-inspired reasoning, and pattern analysis to balance exploration and exploitation. Over time, the strategy became more adaptive, moving from broad discovery toward targeted refinement around promising regions.
 
-All data is stored in this repository under `data/`. The datasets are small (at most 52 rows per function) and are hosted directly.
+Beyond finding strong outputs, the project demonstrates how optimization and machine learning tools can support decision-making under uncertainty. This is a challenge common in engineering, finance, scientific experimentation, business analytics, and real-world machine learning systems where testing is costly, slow, or limited.
 
-### Structure
+---
 
-| Folder | Contents |
-|--------|----------|
-| `data/baseline/` | 8 CSV files, one per function. Columns: x1...xD, y |
-| `data/weekly/` | 13 CSV files (week_01 through week_13). All 8 functions per file, shared x1...x8 schema with empty cells for unused dimensions |
+## Section 1: Project Overview
 
-No external data sources were used. The functions and their evaluations were provided by the course.
+This GitHub repository documents the Bayesian Black-Box Optimization (BBO) capstone project. The project is designed around a set of unknown objective functions, where the internal mathematical structure is not available to the user. The task is to select input values, observe the output, and gradually improve the search strategy over time.
+
+The BBO capstone project has two main objectives. First, to implement an adaptive optimization strategy for black-box functions through an iterative process, seeking to identify the input vector X that maximizes each function. Second, to develop decision-making skills when working with limited information produced by an unknown process.
+
+Professionally, this project helped me develop both technical and strategic thinking skills. The most valuable part of the project was learning how to make decisions with incomplete information, then update those decisions as new results became available.
+
+---
+
+## Section 2: Inputs and Outputs
+
+The project includes eight synthetic black-box functions, each with a different input dimensionality ranging from 2D to 8D. Each function receives a vector of values X and returns one scalar output value. The main objective is to find the vector X that maximizes each black-box function.
+
+### Input Format
+
+All inputs are restricted to values between 0 and 1:
+
+0 ≤ xi < 1
+
+The input vector is written using hyphens and values are specified to six decimal places:
+
+Function 6: [0.697910-0.990583-0.035622-0.974136-0.655285]
+
+### Output Format
+
+For each input X, the function returns a scalar output:
+
+y = f(X)
+
+The output can be positive or negative:
+
+Function 6: -2.0390133791009304
+
+---
+
+## Section 3: Challenge Objectives
+
+The main objective is to develop and implement a methodology to maximize the output of black-box functions by applying Bayesian Optimization models.
+
+This type of challenge includes several constraints:
+
+* Unknown function structure
+* One query per function per iteration
+* Limited evaluation budget
+* Expensive or time-consuming testing
+* Noisy and uncertain outputs
+* Increasing dimensionality from 2D to 8D
+* Risk of local optima
+* Computational cost of surrogate modelling
+
+Because of these constraints, the project required a careful balance between exploration and exploitation.
+
+---
+
+## Section 4: Technical Approach
+
+The methodology is based on several complementary models and analysis techniques. Each method contributed to improving the decision-making process during the optimization rounds.
+
+### Bayesian Optimization
+
+Bayesian Optimization was the core technique used in this project. It allowed the search strategy to improve step by step by using previous observations to guide future query decisions.
+
+Gaussian Process Regression was used as the main surrogate model because it provides both predicted output values and uncertainty estimates. This made it possible to identify regions that were likely to perform well and regions where the model still lacked confidence.
+
+### Acquisition Functions
+
+Two main acquisition functions were used:
+
+* Expected Improvement (EI)
+* Upper Confidence Bound (UCB)
+
+Expected Improvement was used to focus on exploitation by selecting points that were predicted to improve on the best observed output. Upper Confidence Bound was used to encourage exploration by selecting points with high uncertainty.
+
+By combining EI and UCB, the strategy avoided relying on only one decision rule. This helped the project balance short-term improvement with long-term learning.
+
+### Local and Global Candidate Generation
+
+Candidate points were generated both globally and locally. Global candidates helped explore new areas of the input space, while local candidates were generated around the current best-performing points to refine promising regions.
+
+In early rounds, the strategy placed more weight on global exploration. As more data became available, the search gradually shifted toward local refinement. However, a small global exploration component was maintained, especially for the higher-dimensional functions.
+
+### Clustering and Distance Analysis
+
+Clustering and distance-based analysis were used to understand the structure of the observed data. These methods helped identify promising regions where nearby points showed stronger outputs.
+
+Distance analysis also helped avoid selecting points that were too close to weak observations. This improved sample diversity and reduced wasted queries.
+
+### Support Vector Machines
+
+Support Vector Machines were considered as a complementary method rather than a replacement for Bayesian Optimization. By classifying observations into high-performing and low-performing regions, SVMs helped identify possible boundaries between promising and unpromising areas.
+
+A soft-margin SVM was useful conceptually because the outputs were noisy and the boundary between good and bad regions was not always clear. Kernel SVMs were also useful for thinking about nonlinear and multimodal response surfaces.
+
+### Neural Network Reasoning
+
+Neural networks were used conceptually to support structural understanding of the search space. Unlike Gaussian Processes, neural networks do not naturally provide uncertainty estimates, but they are useful for thinking about nonlinear interactions and gradient-like behaviour.
+
+Neural-network-inspired ideas helped interpret which dimensions appeared more influential and where small changes in input values could produce stronger output changes.
+
+### PCA and Dimensional Thinking
+
+PCA-style thinking helped identify which variables, regions, or search behaviours explained the most variation in performance. Instead of treating all dimensions equally, the strategy focused more attention on dimensions and regions that appeared to carry stronger information.
+
+This helped reduce redundant exploration while still preserving enough flexibility to avoid missing important interactions.
+
+### Reinforcement Learning Perspective
+
+The optimization process also resembled reinforcement learning in a general sense. Each new query acted like feedback that updated the strategy for the next round.
+
+Regions that produced strong outputs became more attractive for future sampling, while weak or flat regions were given lower priority. This created an adaptive process where the strategy improved through interaction with the black-box functions.
+
+---
+
+## Section 5: Documentation
+
+This project includes structured documentation following Datasheets for Datasets and Model Cards best practices.
+
+### Datasheet
+
+The dataset datasheet describes:
+
+* The structure of the dataset
+* The input and output format
+* The adaptive sampling process
+* The limitations of the collected data
+* The risk of exploitation-driven sampling bias
+
+### Model Card
+
+The model card provides transparency about the optimization framework, including:
+
+* Gaussian Process surrogate modelling
+* Expected Improvement and UCB acquisition functions
+* Clustering and distance analysis
+* SVM-based region classification
+* Neural-network-inspired interpretation
+* Intended use cases and limitations
+* Risks, assumptions, and possible biases
+
+---
+
+## Section 6: Methodological Notes
+
+The dataset and model should be interpreted as part of a sequential decision-making process. The data does not represent a random sample from the full input space. Instead, it reflects an optimization trajectory shaped by previous decisions.
+
+The strategy evolved based on:
+
+* Best observed outputs
+* GP posterior mean
+* GP uncertainty
+* Expected Improvement values
+* UCB scores
+* Neighbourhood analysis
+* Clustering structure
+* Learned length-scales
+* Local curvature and sensitivity
+* Dimensionality of each function
 
 ### Limitations
 
-- Tiny data budget: 22-52 total observations per function across all 13 weeks
-- No repeated evaluations - cannot measure noise directly
-- No access to the underlying function - cannot verify proximity to the true optimum
-- See [docs/datasheet.md](docs/datasheet.md) for full data documentation
+The main limitations include:
+
+* Strong bias toward local exploitation in later rounds
+* Possible missed global optima
+* Sparse coverage in higher-dimensional functions
+* Dependence on initial exploration quality
+* Risk of Gaussian Process overconfidence
+* Limited number of evaluations
+* Possible noise in observed outputs
 
 ---
 
-## 3. Model
+## Section 7: Weekly Search Strategies
 
-A separate **Gaussian Process (GP)** surrogate was fitted per function each week using all observations up to that point. The GP predicts outputs across the full input space and quantifies uncertainty at every point. This uncertainty is used directly by the acquisition function to decide where to query next.
+### Early Rounds
 
-**Why a GP surrogate?** With at most 52 data points and no access to gradients or function structure, a GP was the only practical choice. It is data-efficient, provides calibrated uncertainty estimates, and naturally handles the exploration-exploitation trade-off through acquisition functions. Neural networks and tree-based models need far more data; random search ignores information from previous queries entirely.
+The early strategy focused on broad exploration. The main objective was to map the search space, reduce uncertainty, and avoid committing too early to one local region.
 
-**Kernel selection:** four candidate kernel shapes are evaluated per function (Matern 5/2, Matern 3/2, RBF, RationalQuadratic). The kernel with the highest log-marginal likelihood is selected automatically each week.
+A hybrid EI and UCB strategy was used, with both global candidate generation and local sampling around the best observed points.
 
-**Acquisition functions:**
-- **UCB (Upper Confidence Bound):** explores uncertain regions - used when the best area has not yet been identified
-- **EI (Expected Improvement):** exploits known good regions - used once a promising area has been found
+### Middle Rounds
 
-The strategy per function switched between UCB and EI based on weekly results. An auto-selection mode (added Week 7) runs both and picks whichever proposes the higher-value point. Manual overrides were applied when the model got stuck proposing near-duplicate queries.
+As more data became available, the strategy shifted toward targeted refinement. The model began to identify stronger basins, especially in lower-dimensional functions.
 
-See [docs/model_card.md](docs/model_card.md) for full model documentation.
+At this stage, local sampling became more important, while a smaller amount of global exploration was kept to protect against model overconfidence and multimodal behaviour.
 
----
+### Later Rounds
 
-## 4. Hyperparameter Optimisation
+In later rounds, the strategy became more confidence-driven. The Gaussian Process posterior mean, uncertainty, and learned length-scales played a stronger role in selecting query points.
 
-The GP surrogate has several settings that affect how it learns and where it queries next.
+For lower-dimensional functions, the model was more stable, so exploitation around promising regions was prioritized. For higher-dimensional functions, especially 6D and 8D, exploration was still maintained because the search space remained sparse and uncertain.
 
-| Hyperparameter | What it controls | How it's set |
-|---|---|---|
-| **Kernel shape** | How smooth or rough the model assumes the function is | Auto-selected per function - tries 4 options, picks best by log-marginal likelihood |
-| **Length scales** (per dimension) | How far apart inputs need to be before output changes noticeably | Learned from data during model fitting |
-| **Noise level** | How much random noise the model expects in outputs | Learned from data during model fitting |
-| **Acquisition function** (UCB or EI) | Whether to explore uncertain areas or exploit known good regions | Chosen per function based on weekly results |
-| **UCB beta** (2.0) | Weight on uncertainty vs predicted value | Fixed - standard default |
-| **EI xi** (0.01) | Minimum improvement threshold | Fixed - standard default |
-| **Query bounds** ([0.001, 0.999]) | Keeps queries away from exact domain edges | Fixed |
+### Final Strategy Direction
 
-All internal parameters (length scales, noise, amplitude) are re-learned from scratch each week as new data arrives. The model runs 15 random restarts during fitting to avoid poor local solutions.
+The final strategy focused on disciplined refinement. Strong-performing basins were exploited more directly, while a small exploration reserve was kept for uncertain regions, boundary areas, and under-sampled subspaces.
 
-### How the approach evolved
-
-| Week | Kernel | Acquisition |
-|------|--------|-------------|
-| W1-W4 | No model | Manual heuristics |
-| W5 | Matern 5/2 for all | UCB for all |
-| W6 | Auto-selected per function | UCB or EI per function |
-| W7-W13 | Auto-selected per function | Auto-select with per-function overrides |
+This approach aimed to maximize expected value per query while reducing the risk of becoming trapped in a local optimum.
 
 ---
 
-## 5. Results
+## Section 8: Key Learning Outcomes
 
-### Final best values across all 13 weeks
+This project developed practical understanding of:
 
-| Function | Best Value | Week | Baseline Best | Beats Baseline? |
-|----------|-----------|------|--------------|----------------|
-| F1 | 1.6e-15 | W4 | 7.7e-16 | Yes |
-| F2 | **0.694** | W10 | 0.611 | Yes |
-| F3 | -0.035 | Baseline | -0.035 | No |
-| F4 | **0.696** | W5 | -4.026 | Yes |
-| F5 | **8585.3** | W6 | 1088.9 | Yes |
-| F6 | **-0.328** | W7 | -0.714 | Yes |
-| F7 | **1.756** | W12 | 1.365 | Yes |
-| F8 | **9.972** | W9 | 9.598 | Yes |
+* Bayesian Optimization
+* Gaussian Process Regression
+* Expected Improvement
+* Upper Confidence Bound
+* Exploration and exploitation trade-offs
+* Query strategy design
+* Clustering and distance analysis
+* SVM-based classification
+* Neural-network-inspired interpretation
+* PCA-style dimensional reasoning
+* Decision-making under uncertainty
 
-**7 out of 8 functions beat the baseline.** F3 was the only function that could not surpass its starting best, though Week 12 came within 0.003 of matching it.
-
-### Key findings
-
-- **F4:** the surrogate found a region in Week 5 that the baseline had completely missed - output jumped from -4.026 to 0.696 in the model's first week.
-- **F5:** systematic corner probing across Weeks 7-10 confirmed all four input dimensions must be near 0.999 simultaneously for the 8585 peak. Pulling any single dimension to 0.001 dropped the output to ~4399.
-- **F7:** improved steadily across multiple weeks (1.365 baseline -> 1.536 -> 1.685 -> 1.756) through a combination of UCB exploration and EI exploitation.
-- **F1:** effectively unoptimisable - outputs span 80+ orders of magnitude near machine zero with no learnable gradient.
-
-See [docs/strategy_evolution.md](docs/strategy_evolution.md) for the full week-by-week account.
+The most important learning outcome was that good optimization is not simply about choosing the next point. It is about managing uncertainty, interpreting feedback, adapting the strategy, and making the best possible decision with limited information.
 
 ---
 
-## 6. Technical Approach (Weeks 1-13)
+## Section 9: Conclusion
 
-### Weeks 1-4: Manual Exploration
+The BBO Capstone Project demonstrates how Bayesian Optimization can be used to solve difficult black-box optimization problems under strict evaluation limits.
 
-Queries chosen by hand using geometric spread, cluster identification and structural patterns in the baseline data. No surrogate model - too little data to fit one reliably.
+By combining Gaussian Process models, acquisition functions, local and global candidate generation, clustering, SVM analysis, neural-network reasoning, and adaptive strategy refinement, the project developed a practical framework for decision-making under uncertainty.
 
-### Week 5: Surrogate Model Introduced
-
-With 14-44 observations per function, a GP surrogate was fitted for each function. Queries switched from manual heuristics to model-driven proposals. First result: F4 jumped from -4.026 to 0.696 - the model found a completely different region.
-
-### Week 6: Kernel Selection + Per-Function Acquisition
-
-Added automatic kernel selection (4 candidates, best by log-marginal likelihood). Per-function acquisition strategy: functions with promising regions switched to EI, others kept UCB. F5 hit 8585.3 using the full upper-boundary query.
-
-### Week 7: Acquisition Auto-Selection
-
-Added a mode that runs both UCB and EI and picks whichever proposes the better point. Explicit overrides still available per function.
-
-### Weeks 8-10: Systematic Probing
-
-F5 corner dimensions probed one by one to confirm which inputs drive the peak. F4 guided with manual overrides near the known good region. F2 beat its baseline for the first time in Week 10 (0.694 vs 0.611).
-
-### Weeks 11-13: Exploitation and Peak Sharpness
-
-F5 peak gradient measured - approximately 4% output drop per 0.019 shift from the boundary, confirming a gradual rather than cliff-like peak. F7 reached a new best of 1.756 in Week 12. Final week targeted best-known regions for all functions.
-
----
-
-## 7. Repository Structure
-
-```
-bayesian-bbo-capstone/
-├── README.md
-├── requirements.txt
-├── data/
-│   ├── baseline/          # Initial sample data (8 CSVs, one per function)
-│   └── weekly/            # Weekly query results (week_01 through week_13)
-├── src/
-│   ├── surrogate.py       # GP surrogate model and acquisition optimisation
-│   ├── pipeline.py        # Query generation pipeline
-│   ├── acquisition.py     # UCB and EI scoring functions
-│   ├── utils.py           # Data loading and helper utilities
-│   ├── functions_map.py   # Function dimension mappings
-│   ├── data_loader.py     # Simple CSV loaders
-│   └── evaluate.py        # Result evaluation
-├── notebooks/
-│   ├── 01_data_exploration.ipynb          # Baseline analysis and weekly progress
-│   ├── 02_surrogate_model_demo.ipynb      # Surrogate model fitting and predicted vs actual
-│   └── 03_acquisition_and_pipeline.ipynb  # Kernel selection, UCB vs EI, end-to-end pipeline
-├── queries/               # Submitted query vectors (week_01 through week_13)
-├── results/               # Weekly result summaries (week_01 through week_13)
-└── docs/
-    ├── datasheet.md           # Data documentation
-    ├── model_card.md          # Model documentation
-    └── strategy_evolution.md  # Week-by-week strategy and results log
-```
-
----
-
-## 8. Getting Started
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Generate surrogate model proposals for all 8 functions:
-
-```python
-from src.surrogate import propose_week_queries
-print(propose_week_queries())
-```
-
-Or run the full pipeline:
-
-```python
-from src.pipeline import generate_week_queries
-generate_week_queries(5, method='surrogate')
-```
-
-The notebooks can be run from the `notebooks/` directory. They expect the project root as the parent folder (standard Jupyter setup).
-
----
-
-## 9. Key Lessons
-
-- **Data over intuition.** Early manual assumptions about which input dimensions mattered were often wrong. The surrogate model revealed the true structure.
-- **Knowing when to model.** Weeks 1-4 used heuristics because the data was too sparse for a reliable surrogate. Week 5 was the right time to switch.
-- **Exploration-exploitation discipline.** With one query per function per week, every submission has a cost. Acquisition functions make the trade-off principled rather than guesswork.
-- **Knowing when to override the model.** The surrogate occasionally got stuck proposing near-duplicate points. Recognising this and applying manual overrides was essential for F4 and F5.
+The project shows that optimization is not only a technical modelling task, but also a process of learning, adapting, and making informed decisions when the true system is unknown.
