@@ -1,18 +1,8 @@
 # BBO Capstone Project
 
-This project implements a Bayesian Optimization framework for black-box functions under limited evaluations.
+This project implements a Bayesian Optimization framework for black-box functions .
 
-## Dataset Datasheet
 
-View Datasheet
-
-## Model Card
-
-View Model Card
-
-## BBO Capstone Presentation
-
-View BBO Capstone Presentation
 
 ---
 
