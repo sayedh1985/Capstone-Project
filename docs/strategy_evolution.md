@@ -1,43 +1,186 @@
-# Strategy Evolution
+# Strategy Evaluation: Weekly Bayesian Optimisation Progress
 
-The optimisation strategy evolved from broad geometric searches to highly targeted, function-specific Bayesian logic as the underlying topologies were revealed:
+This document evaluates how the optimisation strategy developed week by week across the Bayesian Black-Box Optimisation capstone project. The strategy gradually moved from manual exploration to a more systematic model-based approach using Gaussian Process surrogate models, EI/UCB acquisition functions, and function-specific judgement.
 
-* **Week 1:** Pure exploration — spread points geometrically to cover the domain and establish a baseline variance.
-* **Week 2:** Early structure detection — identified promising clusters and steep improvement ridges (e.g., Function 5).
-* **Week 3:** Function-specific acquisition logic — deployed UCB for noisy/flat functions to force exploration, and EI for functions with clear monotonic trends.
-* **Week 4:** Targeted exploitation — aggressively exploited structured functions (F2, F5) while maintaining UCB exploration for noisy or deceptively spiked functions (F6, F7) to escape local optima.
-* **Week 5 (surrogate activation):** With 14–44 observations per function, we now have enough data to train a predictive model for each function. Instead of choosing query points by intuition, the model predicts outputs across the full input space, scores candidate points by balancing predicted value against uncertainty, and recommends the most promising query. The model also revealed which input dimensions actually influence each function — overturning some of our earlier assumptions (e.g., one of F5's four inputs turned out to be irrelevant, changing our query direction entirely).
+---
 
-* **Week 5 results:** The first round of model-driven queries produced mixed results. The biggest win was F4, which jumped from -4.026 to 0.696 — the model found a completely different region of the input space that turned out to be much better. F8 also set a new best at 9.729 (up from 9.69). On the other hand, F5 dropped from 3338.8 to 1600 — the model pushed toward a boundary point that didn't pay off. Baseline data still outperforms our weekly queries for F2, F3, F6 and F7, so there's room to improve.
+## Week 1: Initial Exploration
 
-* **Week 6 (strategy refinement):** Two changes this week. First, instead of using the same model shape for all functions, we now try a few different smoothness assumptions and let the data pick which one fits best. Most functions preferred a smoother model (RBF) over our previous default, and F4 picked a different shape entirely. Second, based on Week 5 feedback, each function gets its own scoring strategy (UCB or EI) rather than a blanket rule — functions where we found good regions switched to EI to exploit those areas, while others stay on UCB to keep searching.
+The first week focused mainly on understanding the search space. Since there was not enough information to build a reliable model, the strategy was based on broad exploration. The aim was to test different parts of the input domain and avoid concentrating too early on one small region.
 
-* **Week 6 results:** The biggest win was F5, which jumped from 3338.8 to 8585.3 — more than doubling the previous best. The query [0.999, 0.999, 0.999, 0.999] pushed all four dimensions to the upper boundary and landed on a much higher peak. F6 beat the baseline for the first time at -0.464 (baseline was -0.714). F7 also improved its weekly best to 1.149 (from 0.654 in W5), though the baseline at 1.365 is still ahead. The downside: F4 dropped sharply to -1.07 after last week's breakthrough of 0.696 — EI found a nearby point but x3 shifted enough to land somewhere much worse. F8 also slipped to 9.522 from 9.729.
+This helped establish the first comparison points for each function and gave an early idea of which functions were smooth, flat, noisy, or highly sensitive.
 
-* **Week 7 (acquisition auto-selection):** A small but important code improvement this week. Previously the model defaulted to UCB for every function when no explicit strategy was given. Now, when no strategy is specified, the model runs both UCB and EI and automatically picks whichever proposes the more promising point (higher predicted mean). An explicit strategy map can still override this per function. For W7, we're forcing UCB on F1, F2 and F3 — these haven't found a good region yet and auto-selection might prematurely lock in EI on a weak local best. F4, F5, F6, F7 and F8 stay on EI to exploit the regions identified so far.
+**Evaluation:**  
+This was a necessary starting point. The results were not always strong, but the week gave useful coverage of the search space and helped avoid early overfitting to weak assumptions.
 
-* **Week 7 results:** Two new bests. F8 reached 9.930, the highest it has been across all weeks. F6 continued improving to -0.328 (from -0.464 last week), now comfortably beating the baseline of -0.714. F5 returned 4399 with x3 pulled to 0.001, which directly confirms that x3=0.999 is essential for the high-value region — the full upper corner is needed. F4 recovered to positive territory at 0.111 but is still well below the W5 breakthrough of 0.696. F7 dropped sharply to 0.123, suggesting the EI candidate from W7 moved into a poor region. The surrogate for F4 and F7 is getting stuck — both UCB and EI returned near-duplicates of the previous week's query for F4, requiring manual overrides.
+---
 
-* **Week 8 (boundary probing for F5, manual overrides for F4):** F5 strategy shifts to systematic corner probing. Having confirmed x3 is critical in W7, W8 tests x4 with [0.999, 0.999, 0.999, 0.001] — if this returns near 8585 then x4 is irrelevant; if it drops, the full corner is needed. F4 gets a manual point near the W5 winner with x3 nudged back toward 0.354. F7 switches back to UCB after EI failed in W7. F6 and F8 stay on EI to continue exploiting their improving regions.
+## Week 2: Early Pattern Recognition
 
-* **Week 8 results:** The F5 corner probe answered the x4 question clearly — it returned 4399, identical to W7's x3 probe. Both x3 and x4 are needed at 0.999 to reach the 8585 peak. F4 recovered to 0.549, a good sign that staying near x3=0.354 is the right direction. F6 dropped back to -0.458 from W7's best of -0.328 — EI overshot in this round. F7 held firm at 1.140, the UCB switch is paying off. F8 slipped to 9.874 from 9.930 — the EI candidate pushed x8 to 0.001 which seems unhelpful.
+In Week 2, the strategy started to use the first signs of structure in the data. Some functions showed possible promising regions, while others still looked flat or difficult to interpret.
 
-* **Week 9 (probing F5 x1, nudging F4 toward W5 winner):** F5 now probes x1 with [0.001, 0.999, 0.999, 0.999] — we know x3 and x4 must be high, and this tests whether x1 also matters. F4 targets [0.440, 0.430, 0.354, 0.410], keeping x3 at the sweet spot but varying x1 and x4 enough to learn more about the region. F1, F2, F3, F7 stay on UCB. F6 back to UCB after EI dropped. F8 stays on EI but with an updated model that now discourages the x8≈0 region.
+For functions with clearer patterns, the query choices moved slightly closer to exploitation. For uncertain functions, broader exploration was still preferred.
 
-* **Week 9 results:** Two new overall bests. F7 reached 1.536, beating the baseline of 1.365 for the first time. F8 hit 9.972, a new high. F5 returned 4399 again with x1=0.001 — confirming x1 is also critical. The F5 corner map is now complete: all four dimensions must be at 0.999 to reach the 8585 peak. F2 improved to 0.480, its best weekly result, though still below baseline 0.611. F4 dropped to 0.393 — the surrogate is struggling to find stable footing in that region. F6 went badly to -0.634 with UCB exploring a poor region.
+**Evaluation:**  
+The strategy became more informed, but it was still mostly manual. This week helped identify which functions were likely to benefit from local refinement and which needed more exploration.
 
-* **Week 10 (F5 x2 probe, F7/F8 exploitation, F6 back to EI):** F5 probes x2 with [0.999, 0.001, 0.999, 0.999] — the only corner dimension not yet tested individually. F7 switches to EI to exploit the new 1.536 region. F8 continues EI. F6 returns to EI targeting the neighbourhood around the W7 best of -0.328, since UCB went badly in W9. F4 lets the model try EI again with updated data. F1, F2, F3 stay on UCB.
+---
 
-* **Week 10 results:** F2 hit a new overall best of 0.694, beating the baseline of 0.611 for the first time across any week — UCB exploring near x1=0.716, x2=0.999 paid off. F5 returned 4399 on the x2 probe, confirming x2 is also critical. The corner map is now complete: all four dimensions must be at 0.999 to reach the 8585 peak. F7 dropped from 1.536 to 1.022 — EI overshot the good region, switching back to UCB. F8 slipped slightly to 9.952 from 9.972. F3 hit its worst result ever at -0.435 — UCB explored a poor corner. F4 drifted further to 0.295, with the surrogate locked in a narrow near-duplicate loop.
+## Week 3: Function-Specific Direction
 
-* **Week 11 (F2 exploitation region, F4 manual escape, F5 peak sharpness probe):** F2's new best at [0.716, 0.999] suggests x2=0.999 matters — the model auto-selected UCB with a proposal at [0.722, 0.654] to test whether x2 needs to stay high. F4 gets a manual override to [0.430, 0.390, 0.354, 0.460] — keeping x3 at the 0.354 sweet spot but moving x1, x2, x4 well away from the loop the model has been stuck in. F5 submits [0.980, 0.999, 0.999, 0.999] (avoiding the W6 duplicate) to probe how sharply the peak falls when x1 drops slightly below 0.999. F7 switches back to UCB after EI underperformed. F6 and F8 stay on EI. F1 and F3 continue UCB exploration.
+By Week 3, the same strategy was no longer suitable for every function. Lower-dimensional functions were easier to analyse, while higher-dimensional functions required more cautious exploration.
 
-* **Week 11 results:** F7 hit a new overall best of 1.685, beating W9's 1.536. F5 returned 8233 at x1=0.980, showing the peak is gradual rather than a cliff — a drop of 0.019 in x1 caused only a 4% fall in output. F2 fell to 0.468 — x2=0.654 confirmed the x2=0.999 requirement; without it, the output dropped significantly from W10's 0.694. F4 went negative at -0.259 — the manual escape moved too far from the good region. F8 slipped to 9.903 — x8=0.999 was unhelpful again. F6 stayed poor at -0.425.
+The strategy started to become function-specific. Promising functions received more focused query points, while difficult functions were still explored more broadly.
 
-* **Week 12 (F7 EI exploitation, F2 back to x2=0.999, F5 x2 sharpness probe):** F7 switches to EI to exploit the new 1.685 region. F2 gets a manual override to [0.780, 0.999] — keeping x2=0.999 confirmed essential, pushing x1 higher than the W10 winner to explore the direction. F5 probes x2 sharpness with [0.999, 0.980, 0.999, 0.999] — mirrors the W11 x1 probe to see whether all dimensions have similar gradients near the peak. F4 back to EI with updated data. F6 and F8 continue EI. F1 and F3 on UCB.
+**Evaluation:**  
+This was an important shift. Treating all functions the same would have wasted queries, especially because the functions had very different dimensionality and behaviour.
 
-* **Week 12 results:** F7 hit another new best at 1.756, the third consecutive improvement across W9, W11 and W12. F5 returned 8233 at x2=0.980, confirming the peak gradient is symmetric — the same output drop as when x1 was pulled to 0.980 in W11. F3 came within 0.003 of the baseline at -0.038, the closest any weekly query has reached. F6 recovered to -0.353, the best result since W7. F2 dropped to 0.128 — x1=0.780 is too far from the x1≈0.716 sweet spot confirmed by W10.
+---
 
-* **Week 13 (final round — exploit all best known regions):** This is the last query submission. F7 stays on EI to target another improvement beyond 1.756. F2 uses the model's UCB proposal near x1=0.700, x2=0.999 — close to the confirmed best region without repeating W10. F5 submits [0.999, 0.999, 0.985, 0.999] — the nearest clean point to the confirmed optimum. F4 gets a manual point at [0.460, 0.380, 0.354, 0.400] to break out of the near-duplicate loop one last time with x3 held at the sweet spot. F3, F6, F8 use model-driven EI proposals.
+## Week 4: Targeted Manual Refinement
 
-* **Week 13 results (final):** F5 returned 8323.6, the best result since the W6 breakthrough at 8585.3, and higher than both the W11 and W12 sharpness probes (which gave 8233). This confirms x3 has a slightly shallower gradient than x1 or x2 near the peak. F2 came in at 0.665 — close to the W10 overall best of 0.694, showing the region around x1≈0.70, x2=0.999 is stable and productive. F8 reached 9.965, consistent with the W9 best of 9.972. F7 dropped to 1.391 from the W12 peak of 1.756 — the final EI proposal overshot the good neighbourhood. F6 slipped slightly to -0.422. F3 returned -0.069, worse than W12's near-baseline result of -0.038 — the EI candidate moved away from the good region. F4 went negative again at -0.448 despite the manual override; the W5 peak proved too narrow to reliably reproduce. F1 returned near-zero as expected. **Final outcome: 7 out of 8 functions beat the baseline. F3 is the only function that never surpassed its baseline best of -0.035 across all 13 weeks, though W12 came within 0.003 of matching it.**
+Week 4 continued to use manual decision-making, but the query points became more targeted. The focus was on testing areas that appeared promising from the earlier weeks.
+
+Some functions began to show clearer regions of improvement. Others remained difficult because the output changed only slightly or behaved unpredictably.
+
+**Evaluation:**  
+This week improved the quality of the search, but the lack of a formal surrogate model limited how much could be learned from the data. A more systematic method was needed for the next stage.
+
+---
+
+## Week 5: Gaussian Process Strategy Introduced
+
+Week 5 marked the beginning of the model-based strategy. Gaussian Process models were introduced to predict the output surface and estimate uncertainty.
+
+Instead of choosing points only by intuition, the model generated predictions across candidate points. The acquisition logic helped balance predicted value and uncertainty.
+
+The strategy used the available data to suggest points that were either likely to improve the result or likely to reveal useful new information.
+
+**Evaluation:**  
+This was a major improvement in the methodology. The model helped guide the search more systematically. However, some model suggestions were risky, especially near boundaries, so human review was still important.
+
+---
+
+## Week 6: Stronger Model Control and Better Acquisition Choices
+
+In Week 6, the strategy became more refined. The model was no longer treated as a single fixed method for all functions. The approach started to consider how each function behaved.
+
+Functions with promising regions were pushed toward exploitation, while uncertain functions kept more exploration. This better matched the purpose of EI and UCB.
+
+Function 5 showed a major improvement after exploring an extreme high-value region. Function 6 also improved compared with its baseline.
+
+**Evaluation:**  
+This week showed the value of model-guided search. It also showed that boundary points can sometimes be extremely useful, but they can also be risky. The main lesson was that acquisition choices must match the function behaviour.
+
+---
+
+## Week 7: Balancing EI and UCB More Carefully
+
+Week 7 continued the model-based approach and placed more attention on the balance between exploration and exploitation.
+
+EI was useful for functions where good regions had already been found. UCB remained useful for functions where the model was still uncertain or where the surface looked unstable.
+
+Some functions improved strongly, especially in higher-dimensional cases. However, other functions showed that EI can overshoot if the model becomes too confident around a weak region.
+
+**Evaluation:**  
+The strategy became more mature this week. The results confirmed that EI and UCB should not be applied blindly. The best acquisition function depends on the function's current learning stage.
+
+---
+
+## Week 8: Manual Overrides and Boundary Testing
+
+In Week 8, manual overrides became an important part of the strategy. Some model suggestions were too similar to previous points or moved away from useful regions.
+
+For Function 5, the strategy tested whether the high-value peak required all dimensions to stay near the boundary. This gave useful information about which dimensions were critical.
+
+For Function 4, manual adjustment was used to stay close to the earlier good region while avoiding near-duplicate model suggestions.
+
+**Evaluation:**  
+This week showed that the model was helpful but not fully reliable on its own. Human interpretation improved the search by correcting model behaviour when it became too narrow or repetitive.
+
+---
+
+## Week 9: Confirming Important Dimensions
+
+Week 9 focused on testing whether certain dimensions were truly important. Function 5 was explored systematically by changing one boundary dimension at a time.
+
+This helped confirm that the strongest region required several dimensions to stay high. Function 7 and Function 8 also showed strong improvement, proving that continued exploration in high-dimensional spaces was still valuable.
+
+**Evaluation:**  
+This was one of the most informative weeks. The strategy was not only trying to improve results, but also trying to understand why certain regions worked. This made later decisions more confident.
+
+---
+
+## Week 10: Exploiting Strong Regions and Testing Assumptions
+
+Week 10 used the information gained from earlier weeks to focus more strongly on promising regions.
+
+Function 2 achieved a new best result by exploring a region where one coordinate appeared especially important. Function 5 confirmed that another dimension was also critical for the high-value peak.
+
+However, some functions dropped when EI moved too aggressively away from the best neighbourhood.
+
+**Evaluation:**  
+This week showed both the strength and weakness of exploitation. When the model was correct, it improved results. When it overestimated a nearby region, the output dropped. The strategy needed continued adjustment.
+
+---
+
+## Week 11: Refining the Best Regions
+
+Week 11 focused on refining confirmed regions rather than searching randomly. Function 5 tested how sharply the peak declined when one coordinate was moved slightly away from the boundary.
+
+Function 2 tested whether the second coordinate needed to stay high. The result showed that moving it away caused a significant drop, confirming its importance.
+
+Function 7 improved again after returning to a more exploratory strategy.
+
+**Evaluation:**  
+This week was useful because it converted earlier guesses into stronger evidence. The strategy became more analytical, using each query to test a specific hypothesis.
+
+---
+
+## Week 12: Focused Exploitation Before the Final Round
+
+Week 12 used more focused exploitation for functions that had recently improved. Function 7 reached another strong result, showing that the good region was still productive.
+
+Function 5 tested another small movement away from the peak and showed similar behaviour to the previous week. This suggested the high-value peak was smooth near the boundary rather than a sudden spike.
+
+Function 3 came close to its best baseline result, but still did not clearly improve beyond it.
+
+**Evaluation:**  
+This week strengthened confidence in the best regions for several functions. It also confirmed that Function 3 was difficult to improve and may require a very specific input combination.
+
+---
+
+## Week 13: Final Query Selection
+
+The final week focused on using the best-known information before the query budget ended. The strategy selected points close to the strongest known regions while avoiding exact duplicates.
+
+Function 5 remained strong near the confirmed peak. Function 2 stayed close to its best region. Function 8 also remained consistent near its high-value area.
+
+However, Function 7 dropped from its previous best, showing that final-round EI can be risky when there is no later opportunity to correct the move. Function 4 also remained difficult because the earlier good region could not be reliably reproduced.
+
+**Evaluation:**  
+The final week showed that the strategy had become much more informed, but uncertainty remained. For the last round, safer exploitation may have been better for some functions than aggressive EI.
+
+---
+
+## Overall Strategy Evaluation
+
+Across the project, the strategy improved significantly. It began with broad manual exploration and developed into a structured Bayesian optimisation workflow.
+
+The final approach combined:
+
+- Gaussian Process surrogate models
+- Matern kernels
+- noise regularisation
+- scaling for high-dimensional functions
+- EI for exploitation
+- UCB for exploration
+- local candidate generation
+- global Latin Hypercube Sampling
+- manual review when the model behaved poorly
+
+The most important lesson was that no single optimisation rule worked for all functions. Each function required its own balance of exploration and exploitation.
+
+Low-dimensional functions benefited from local refinement once a good region was found. Higher-dimensional functions required broader exploration for longer. Some functions, such as Function 3 and Function 4, remained difficult because their landscapes were flat, narrow, or unstable.
+
+Overall, the strategy successfully improved most functions and produced a more explainable optimisation process. The best results came when model predictions were combined with human interpretation rather than trusted blindly.
