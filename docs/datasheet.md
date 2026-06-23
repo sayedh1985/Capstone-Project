@@ -1,213 +1,347 @@
 # Datasheet: Bayesian Black-Box Optimisation Capstone
 
-This datasheet documents the optimisation decisions, learning and reasoning across all eight black-box functions in the BBO capstone project.
+This datasheet documents the optimisation strategy, data handling, modelling decisions, weekly learning, and final results for the Bayesian Black-Box Optimisation capstone project. The project focused on maximising eight unknown black-box functions using a limited query budget.
 
 ---
 
-## Function Overview
+## 1. Function Overview
 
-**1. Which functions does this datasheet describe?**
+### 1.1 Which functions does this datasheet describe?
 
-Functions 1 through 8. Each is a separate unknown black-box function with a different dimensionality, output range and landscape character.
+This datasheet describes Functions 1 through 8. Each function is an unknown black-box optimisation problem with a different input dimensionality, output range, and difficulty level.
 
-| Function | Dimensions | Output range observed | Character |
-|----------|------------|----------------------|-----------|
-| F1 | 2D | ~10⁻¹⁵ to 10⁻⁹⁸ | Near-zero everywhere, not learnable |
-| F2 | 2D | -0.28 to 0.69 | Smooth, structured, exploitable |
-| F3 | 3D | -0.44 to -0.035 | Flat, negative, hard to improve |
-| F4 | 4D | -4.03 to 0.70 | Narrow peak, highly sensitive to x3 |
-| F5 | 4D | ~1 to 8585 | Sharp corner maximum, all dims critical |
-| F6 | 5D | -0.75 to -0.33 | Volatile, many local optima |
-| F7 | 6D | 0.12 to 1.76 | Gradual improvement, exploitable |
-| F8 | 8D | 9.52 to 9.97 | High-dimensional, narrow good region |
+| Function | Dimensions | General behaviour observed | Main challenge |
+|---|---:|---|---|
+| F1 | 2D | Very sharp peak after near-zero initial outputs | Finding the hidden high-value region |
+| F2 | 2D | Smooth and learnable | Refining around the best region |
+| F3 | 3D | Mostly negative and relatively flat | Small improvements are difficult |
+| F4 | 4D | Large variation in outputs | Possible outlier or very sharp peak |
+| F5 | 4D | Strong high-output region | Exploiting the best cluster |
+| F6 | 5D | Negative outputs with local improvements | Higher-dimensional search difficulty |
+| F7 | 6D | Clear improvement through exploration | Multimodal high-dimensional landscape |
+| F8 | 8D | High outputs clustered near good regions | Very high dimensionality and narrow search space |
 
-**2. What real-world scenarios do these functions simulate?**
-
-The functions are synthetic but represent the class of problems where a process or system must be tuned through repeated experiments — for example, chemical yield optimisation, drug dosing, engineering parameter tuning, or hyperparameter search in machine learning. In each case, the internal mechanism is hidden and only the output of each trial is observed.
-
-**3. What is the dimensionality of the input?**
-
-Varies by function: F1 and F2 are 2D, F3 is 3D, F4 and F5 are 4D, F6 is 5D, F7 is 6D, and F8 is 8D. All inputs are continuous values in the range [0, 1].
-
-**4. How many initial data points were provided?**
-
-Each function came with a baseline dataset of between 6 and 30 initial evaluations. The exact sizes varied:
-
-| Function | Baseline points | Weekly points added | Total at end |
-|----------|----------------|---------------------|-------------|
-| F1 | 9 | 13 | 22 |
-| F2 | 9 | 13 | 22 |
-| F3 | 14 | 13 | 27 |
-| F4 | 29 | 13 | 42 |
-| F5 | 19 | 13 | 32 |
-| F6 | 19 | 13 | 32 |
-| F7 | 29 | 13 | 42 |
-| F8 | 39 | 13 | 52 |
-
-**5. What does the output represent?**
-
-A single real-valued scalar — the result of evaluating the hidden function at the queried input point. No units are provided. The goal is to maximise this value.
+The objective for all functions was to **maximise the output value**.
 
 ---
 
-## Nature of the Data
+## 2. Nature of the Data
 
-**1. Describe the structure of the initial dataset.**
+### 2.1 What does each dataset contain?
 
-Each baseline CSV contains rows of (x1, x2, ..., xD, y) where D is the function's dimensionality and y is the observed output. All inputs lie in [0, 1]. Weekly results follow the same format and are stored as separate files (week_01.csv through week_13.csv), with all 8 functions in each file using a shared schema of x1 through x8 (unused dimensions are left empty).
+Each dataset contains input vectors and their corresponding output values. The inputs are continuous values mostly within the range `[0, 1]`. Each row represents one evaluation of the unknown black-box function.
 
-**2. How does the dataset evolve as you add new queries weekly?**
+The format is:
 
-One query per function per week was added over 13 weeks. Early weeks used geometric exploration — spreading points to cover the domain — while later weeks targeted specific regions identified as promising. By the final week, each function had shifted from broad coverage to repeated exploitation of its best-known neighbourhood.
+```text
+x1, x2, ..., xd -> y
+```
 
-**3. Does the function include noise or randomness?**
+where `d` is the number of dimensions for that function, and `y` is the scalar output.
 
-Most functions appeared deterministic — re-querying at the same point would likely return the same value. However, F6 and F7 showed volatile behaviour where nearby points returned very different outputs, suggesting either a highly irregular landscape or mild evaluation noise. F1 appeared degenerate — outputs spanned 80+ orders of magnitude with no learnable structure.
+### 2.2 How did the dataset evolve?
 
-**4. Do the functions appear unimodal, multimodal, noisy or smooth?**
+The dataset started with the initial points provided for each function. After that, new query results were added from the weekly optimisation process. These added points were selected using a combination of:
 
-- F2, F4, F8: Smooth with a single exploitable peak region. GP surrogate predicted well.
-- F5: Unimodal with a sharp corner maximum — all four inputs needed to be near 0.999 simultaneously.
-- F6, F7: Multimodal or highly irregular. The GP surrogate struggled to predict accurately, and small moves produced large output changes.
-- F3: Essentially flat negative surface. Near-impossible to improve on the baseline.
-- F1: Degenerate — outputs near machine zero, no gradient signal visible.
+- Gaussian Process surrogate modelling
+- Expected Improvement
+- Upper Confidence Bound
+- Local search around the current best point
+- Global exploration using Latin Hypercube Sampling
 
----
-
-## Optimisation Strategy
-
-**1. Which optimisation methods were used?**
-
-- Weeks 1–4: Manual heuristics — geometric point spreading, cluster identification, intuition-driven targeting
-- Weeks 5–13: Gaussian Process (GP) surrogate models with Expected Improvement (EI) and Upper Confidence Bound (UCB) acquisition functions, optimised via differential evolution
-
-**2. Why this method for these functions?**
-
-With at most 52 data points and no access to gradients, a GP surrogate was the only practical choice. It predicts outputs across the full input space, quantifies uncertainty, and uses that uncertainty to decide where to query next. Random search would waste queries. Grid search is intractable in 6–8 dimensions. Neural networks need far more data than was available.
-
-**3. How was exploration and exploitation balanced?**
-
-Two acquisition functions were used:
-- **UCB (Upper Confidence Bound):** adds a multiple of the predicted uncertainty to the predicted mean. Favours uncertain regions — good for functions where the best area hasn't been found yet.
-- **EI (Expected Improvement):** scores points by how much better than the current best they are predicted to be. Favours known good regions — good for squeezing out improvements once a promising area is found.
-
-The strategy switched between them per function based on weekly results. An auto-selection mode was also added (W7 onward) that runs both and picks whichever proposes the higher-value point.
-
-**4. Did the strategy change over the weeks?**
-
-Significantly. Early weeks had no model at all — queries were chosen by hand. The surrogate was introduced in W5. W6 added automatic kernel selection. W7 added acquisition auto-selection. From W8 onward, per-function manual overrides were used whenever the model got stuck producing near-duplicate proposals. F5 was systematically probed corner-by-corner across W7–W10 to map which dimensions were critical.
+As more data was collected, the strategy moved from broader exploration toward more targeted exploitation around promising regions.
 
 ---
 
-## Data Handling and Preprocessing
+## 3. Optimisation Strategy
 
-**1. Were inputs rescaled or normalised?**
+### 3.1 Which optimisation method was used?
 
-No. All inputs were already bounded in [0, 1] by the problem definition, so no additional normalisation was needed. The GP model was trained directly on the raw input vectors.
+The main strategy was **Bayesian Optimisation using Gaussian Process Regression**.
 
-**2. Were surrogate models trained?**
+For each function, a separate Gaussian Process model was fitted using all available observations. The model was then used to predict promising new candidate points.
 
-Yes — a separate Gaussian Process was fitted per function each week using all available data up to that point (baseline + all previous weekly results).
+The final strategy used:
 
-**3. What preprocessing did the surrogate require?**
+- Gaussian Process Regressor
+- Matern kernel
+- WhiteKernel noise regularisation
+- Expected Improvement
+- Upper Confidence Bound
+- Hybrid acquisition scoring
+- Latin Hypercube Sampling
+- Local candidate generation around the current best point
 
-- **Kernel selection:** four candidate kernels were evaluated per function (Matern 5/2, Matern 3/2, RBF, RationalQuadratic). The kernel with the highest log-marginal likelihood was selected.
-- **Noise modelling:** a white noise term was added to each kernel to account for potential observation noise.
-- **Hyperparameter fitting:** all kernel parameters (length scales, noise level, amplitude) were learned from data using maximum likelihood with 15 random restarts to avoid poor local fits.
-- **Query bounds:** the acquisition optimiser was constrained to [0.001, 0.999] to avoid proposing exact boundary points.
+### 3.2 Why was this method suitable?
 
-**4. Were outliers or unusual data points handled?**
+The functions were black-box functions, meaning no formula, gradient, or internal structure was available. Only input-output evaluations were known.
 
-F1 outputs were near machine zero (10⁻¹⁵ to 10⁻⁹⁸). No special handling was applied — the GP was trained on these values but the model fits were essentially meaningless. F1 queries were continued for completeness but no meaningful optimisation was expected or achieved.
+Gaussian Processes were suitable because they can:
 
----
+- learn from small datasets,
+- estimate uncertainty,
+- guide future sampling decisions,
+- balance exploration and exploitation,
+- work well with expensive or limited function evaluations.
 
-## Weekly Iteration and Learning
-
-**1. How did new data change understanding of the function landscapes?**
-
-Each week revealed new structure. F5 appeared to have a smooth surface early on but W6's all-boundary query revealed a massive peak at the corner — a result that reshaped the entire F5 strategy. F4's W5 result showed the baseline data had completely missed a good region (0.696 vs baseline best of -4.026). F2 showed a clear x2=0.999 dependency that was only confirmed after deliberately varying x2 in W11.
-
-**2. Were local optima encountered?**
-
-Yes, particularly in F4 and F7. The F4 surrogate repeatedly proposed points within 0.01 of previous queries, unable to distinguish between them due to limited gradient signal around the good region. F7 saw EI overshoot the best region twice — once dropping from 1.536 to 1.022, and again at the final query (1.756 to 1.391).
-
-**3. Which queried inputs were most informative?**
-
-- F5 corner probes (W7–W10): pulling one dimension to 0.001 each week confirmed all four dimensions were critical for the 8585 peak.
-- F2 W11 probe: setting x2=0.654 and watching the output drop to 0.468 (from 0.694) definitively confirmed x2=0.999 was essential.
-- F8 W7 query: x5=0.999 pattern established here; all subsequent EI proposals kept x5 high and continued improving.
-
-**4. What would be done differently on a restart?**
-
-- Spend more early queries on F4 — the baseline was entirely in negative territory, meaning the good region was likely elsewhere from the start. A few random restarts in W1–W2 might have found it sooner.
-- Avoid EI for F7 in the final week — the last query had no correction opportunity, and UCB's safer exploration would have been lower risk.
-- Use a different approach for F1 entirely — with outputs near machine zero, the GP learns nothing useful. A simple random or manual search would have been equivalent at much lower cost.
+Random search alone would waste many queries, especially in higher dimensions. Neural networks were considered, but they require more data and are more likely to overfit with small sample sizes.
 
 ---
 
-## Performance and Results
+## 4. Exploration and Exploitation
 
-**1. What is the best output value achieved per function?**
+### 4.1 How was exploration handled?
 
-| Function | Best Value | Week Achieved |
-|----------|-----------|--------------|
-| F1 | 1.6e-15 | W4 |
-| F2 | 0.694 | W10 |
-| F3 | -0.035 | Baseline |
-| F4 | 0.696 | W5 |
-| F5 | 8585.3 | W6 |
-| F6 | -0.328 | W7 |
-| F7 | 1.756 | W12 |
-| F8 | 9.972 | W9 |
+Exploration was handled mainly through:
 
-**2. Which input vectors produced these values?**
+- **Upper Confidence Bound**
+- **Latin Hypercube Sampling**
+- global candidate generation across the full `[0, 1]` domain
 
-| Function | Best Input Vector |
-|----------|------------------|
-| F1 | [0.008, 0.003] |
-| F2 | [0.716599, 0.999000] |
-| F3 | Baseline point (exact coordinates in baseline CSV) |
-| F4 | [0.413, 0.410, 0.355, 0.423] |
-| F5 | [0.999, 0.999, 0.999, 0.999] |
-| F6 | [0.508, 0.417, 0.574, 0.696, 0.001] |
-| F7 | [0.001, 0.248, 0.001, 0.209, 0.357, 0.713] |
-| F8 | [0.170, 0.043, 0.189, 0.260, 0.999, 0.640, 0.358, 0.557] |
+UCB was useful because it gives higher scores to points where the model has high uncertainty. This helped avoid focusing only on the current best region too early.
 
-**3. How confident are we that these are near the global maximum?**
+### 4.2 How was exploitation handled?
 
-Confidence varies significantly by function:
+Exploitation was handled through:
 
-- **F5:** High confidence. The corner map was systematically confirmed — every off-corner probe returned 4399 vs 8585 at the full corner. The peak gradient was also measured (4% drop per 0.019 shift), so we know the surface well near the optimum.
-- **F7, F8:** Moderate confidence. Both improved steadily over many weeks but neither reached a stable plateau. There may be higher values nearby.
-- **F2:** Moderate confidence. The x2=0.999 requirement was clearly established, and x1≈0.716 was identified as a sweet spot, but the region wasn't exhaustively mapped.
-- **F4:** Low confidence. The best result (W5) was never reproduced, suggesting it may have been a narrow spike the model was unable to reliably locate.
-- **F3:** Very low confidence for the weekly queries. The baseline best was never beaten. The true maximum may require a very specific input combination that was never sampled.
-- **F1:** No meaningful confidence — the function outputs are near machine zero and appear to have no learnable structure.
+- **Expected Improvement**
+- local candidate generation around the best observed point
+- repeated refinement near high-performing regions
 
-**4. Did results align with expectations?**
+EI was used to identify points that were predicted to improve over the current best output.
 
-Partly. F5's massive jump in W6 (from 3338 to 8585) was a genuine surprise — the all-boundary query hit a region no prior reasoning had suggested. F4's W5 breakthrough was similarly unexpected. F3's stubborn resistance to improvement was frustrating but consistent with what the baseline data suggested (very flat surface). F1's near-zero outputs were apparent from the baseline and confirmed throughout.
+### 4.3 What was the hybrid acquisition strategy?
+
+Instead of using only EI or only UCB, both were combined into a hybrid score:
+
+```text
+Hybrid Score = EI weight x normalised EI + UCB weight x normalised UCB
+```
+
+The weights changed depending on dimensionality:
+
+| Function type | Strategy |
+|---|---|
+| Low-dimensional functions | More exploitation |
+| Medium-dimensional functions | Balanced EI and UCB |
+| High-dimensional functions | More global exploration |
+
+For example, Function 8 used more exploration because it is 8D and has a much larger search space.
 
 ---
 
-## Ethical, Practical and General Considerations
+## 5. Data Handling and Preprocessing
 
-**1. How does this task relate to real-world applications?**
+### 5.1 Were inputs scaled?
 
-Black-box optimisation with limited query budgets appears in many high-stakes domains: drug discovery (each trial requires a lab experiment), materials science (each synthesis is expensive), hardware design (each simulation is computationally costly), and clinical trials (each patient cohort is a limited resource). The methodology here — surrogate models, acquisition functions, systematic probing — transfers directly to those problems.
+For lower-dimensional functions, the model could work directly with the input values because they were already in `[0, 1]`.
 
-**2. What limitations arise from the synthetic nature of the function?**
+For higher-dimensional functions such as F6, F7, and F8, **StandardScaler** was used to scale the input data before training the Gaussian Process model. This helped stabilise training and made length-scale learning more reliable.
 
-The functions are noiseless (or near-noiseless) and bounded. Real problems often have measurement error, constraints that aren't rectangular, non-stationarity, and input interactions that shift over time. The clean [0,1] domain and fixed dimensionality also simplify the problem considerably compared to real parameter spaces, which may have mixed types, correlated inputs, or infeasible regions.
+### 5.2 Were outputs scaled?
 
-**3. Would this strategy scale to more serious or more expensive problems?**
+For functions with larger or more varied output ranges, outputs were also scaled using **StandardScaler**. Predictions were then converted back to the original output scale before calculating EI and UCB.
 
-The core approach scales well — Gaussian Processes are standard practice for expensive black-box optimisation. However, GPs scale poorly with dimensionality (beyond ~20 dimensions the surrogate becomes unreliable) and with data size (fitting time grows cubically). For very expensive problems (e.g., clinical trials), the query budget would be even tighter and each acquisition decision would need more rigorous justification.
+This was especially important for functions with high dimensionality or wide output variation.
 
-**4. What risks should a future user be aware of?**
+### 5.3 How were candidate points generated?
 
-- **Near-duplicate proposals:** the surrogate can get stuck proposing the same point repeatedly, especially near boundaries or in flat regions. A duplicate check before each submission is essential.
-- **Boundary behaviour:** EI at a hard boundary (0.999 or 0.001) will keep returning the boundary point. Manual overrides or a boundary penalty are needed.
-- **Kernel selection instability:** with very few data points, the "best" kernel can change dramatically from week to week. Decisions made on early kernel fits may not reflect the true function shape.
-- **Degenerate functions:** some functions (like F1) are not meaningfully optimisable with a GP surrogate. Identifying these early and redirecting effort elsewhere is valuable.
+Candidate points were generated in two ways:
+
+1. **Local candidates**  
+   These were sampled around the current best point using Gaussian noise.
+
+2. **Global candidates**  
+   These were generated using Latin Hypercube Sampling across the whole domain.
+
+The final candidate pool combined both local and global candidates.
+
+---
+
+## 6. Function-Specific Strategy
+
+### Function 1
+
+Function 1 initially appeared almost impossible to optimise because many outputs were extremely close to zero. However, after exploring the space, a strong peak was found near:
+
+```text
+0.628540-0.628540
+```
+
+This became the main exploitation region. Later queries focused on refining around this point.
+
+### Function 2
+
+Function 2 was smoother and easier to model. The GP model identified useful regions, and the hybrid EI/UCB strategy helped refine points around the best observed values.
+
+Because it is only 2D, more local exploitation was used after a promising region was found.
+
+### Function 3
+
+Function 3 was more difficult because most outputs were negative and close together. The function appeared relatively flat, so improvements were small.
+
+The strategy used moderate exploration with EI/UCB to avoid getting stuck in weak local regions.
+
+### Function 4
+
+Function 4 showed large variation in output values. One observed value was much higher than the rest, so the code included a warning to check whether this value was a true output or a possible sign error.
+
+The strategy used balanced local and global search because the function may contain sharp peaks.
+
+### Function 5
+
+Function 5 had a clear high-value region in the 4D space. The strategy gave more weight to exploitation because the best region was already visible from the data.
+
+Local candidates were generated around the best point, while global Latin Hypercube points were still included to avoid missing another region.
+
+### Function 6
+
+Function 6 was 5D and had negative output values. The objective was still to maximise the function, meaning values closer to zero were better.
+
+Scaling was important here because the function was higher-dimensional. The strategy used a balanced approach with both local exploitation and global exploration.
+
+### Function 7
+
+Function 7 was 6D and showed strong improvements through exploration. Because the search space was larger, the strategy used more global exploration than the lower-dimensional functions.
+
+The hybrid EI/UCB acquisition helped identify both promising regions and uncertain regions.
+
+### Function 8
+
+Function 8 was the most difficult because it was 8D. The search space was large, so the strategy used more global candidates than local ones.
+
+The final Function 8 code used:
+
+- scaled input data,
+- scaled output data,
+- Matern kernel,
+- EI/UCB hybrid acquisition,
+- 30% local exploitation,
+- 70% global exploration.
+
+One observed input contained a negative value, so the code kept it as training data but restricted all new suggested candidates to `[0, 1)`.
+
+---
+
+## 7. Weekly Learning
+
+### 7.1 How did the strategy change over time?
+
+The strategy became more structured as more results were collected.
+
+Early work focused on:
+
+- testing different regions,
+- understanding the output range,
+- identifying whether each function was smooth, flat, or highly variable.
+
+Later work focused on:
+
+- fitting GP surrogate models,
+- using EI and UCB acquisition functions,
+- generating local/global candidate pools,
+- refining around the best known points.
+
+### 7.2 What was learned from the iterations?
+
+The main learning was that each function required a different balance of exploration and exploitation.
+
+Low-dimensional functions could be refined more aggressively, while high-dimensional functions required more global exploration.
+
+For example:
+
+- Function 1 needed repeated local refinement after the hidden peak was found.
+- Function 5 benefited from exploitation around a strong high-value region.
+- Function 7 and Function 8 required more exploration because of their larger dimensionality.
+
+---
+
+## 8. Performance and Results
+
+### 8.1 What were the best observed values?
+
+| Function | Best observed value | Best observed input |
+|---|---:|---|
+| F1 | 2.000000 | `0.628540-0.628540` |
+| F2 | 0.784369 | `0.860214-0.472626` |
+| F3 | -0.033331 | `0.493645-0.858708-0.508075` |
+| F4 | 32.625631 | `0.948389-0.894513-0.851637-0.552196` |
+| F5 | 1513.304903 | `0.385144-0.835222-0.875492-0.956764` |
+| F6 | -0.289010 | `0.464984-0.369388-0.703268-0.908164-0.181040` |
+| F7 | 2.402349 | `0.033969-0.126740-0.514117-0.133496-0.374088-0.621625` |
+| F8 | 9.947740 | `0.039675-0.121395-0.150160-0.029602-0.752700-0.490718-0.085935-0.710564` |
+
+### 8.2 How confident are we in these results?
+
+Confidence varied by function.
+
+| Function | Confidence level | Reason |
+|---|---|---|
+| F1 | High near the discovered peak | Repeated nearby points produced strong results |
+| F2 | Moderate | Smooth behaviour made the model reliable |
+| F3 | Low to moderate | Flat negative surface made improvement difficult |
+| F4 | Low | One value was much higher than the others and should be checked |
+| F5 | Moderate to high | Strong high-value cluster was identified |
+| F6 | Moderate | Best values were still negative but improved |
+| F7 | Moderate | Strong results were found, but 6D space may contain other peaks |
+| F8 | Moderate | Very high-dimensional, so full confidence is difficult |
+
+---
+
+## 9. Limitations
+
+### 9.1 What were the main limitations?
+
+The main limitations were:
+
+- small number of observations,
+- high dimensionality for Functions 6, 7, and 8,
+- possible overfitting in GP models,
+- possible duplicate or near-duplicate suggestions,
+- sensitivity to kernel length-scale estimation,
+- possible outlier values in Function 4,
+- one out-of-domain observed value in Function 8.
+
+### 9.2 Why not rely fully on neural networks?
+
+Neural networks were tested as an optional comparison, but they were not used as the main strategy because the dataset was too small. Neural networks can fit the training data very well but may generalise poorly when only a limited number of function evaluations are available.
+
+Gaussian Processes were more suitable because they provide uncertainty estimates, which are essential for Bayesian optimisation.
+
+---
+
+## 10. Ethical and Practical Considerations
+
+Black-box optimisation is relevant to real-world problems where experiments are expensive or time-consuming. Examples include:
+
+- drug discovery,
+- engineering design,
+- materials testing,
+- machine learning hyperparameter tuning,
+- industrial process optimisation.
+
+A responsible optimisation strategy should avoid blindly trusting model predictions. It should include sanity checks, uncertainty estimates, and careful review of unusual results.
+
+In this project, the code included warnings for:
+
+- overfitting,
+- out-of-domain observations,
+- unusual output values,
+- very high uncertainty.
+
+---
+
+## 11. What Would Be Improved Next Time?
+
+If restarting the project, the strategy could be improved by:
+
+1. adding duplicate-checking before every query,
+2. using more global exploration earlier for high-dimensional functions,
+3. applying boundary penalties when the model repeatedly suggests edge points,
+4. using multiple kernels and comparing them,
+5. validating suspicious outputs such as the large Function 4 value,
+6. using neural networks only as a secondary comparison, not as the main optimiser,
+7. documenting every weekly query with the reason it was selected.
+
+---
+
